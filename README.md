@@ -34,7 +34,7 @@ docker run \
   -e REMOTE_STORAGE_URL=http://usp-s3-storage.s3.eu-central-1.amazonaws.com/ \
   -e LOG_LEVEL=debug \
   -p 1080:80 \
-  unifiedstreaming/origin-manifest-edit:1.10.28
+  unifiedstreaming/unified-origin-manifest-edit:1.10.28
 ```
 
 Tutorial
@@ -68,3 +68,4 @@ The available pipelines are:
 These pre-configured use cases are may or may not apply at all to your content.
 If you need to customize one or more of the use cases for your specific goal,
 our customer support will be glad to guide you through the process.
+
