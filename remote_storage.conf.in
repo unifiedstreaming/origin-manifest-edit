@@ -1,3 +1,25 @@
-<Directory /var/www/unified-origin/{{REMOTE_PATH}}>
-  IsmProxyPass {{REMOTE_STORAGE_URL}}
-</Directory>
+<VirtualHost *:81>
+ ServerName unified-origin-backend
+
+ LogFormat {{LOG_FORMAT}} log_format
+
+ CustomLog /dev/stdout log_format
+ ErrorLog /dev/stderr
+
+ LogLevel {{LOG_LEVEL}}
+
+ <Location "/">
+   UspHandleIsm on
+   UspEnableSubreq on
+ </Location>
+
+ <Location "/">
+    IsmProxyPass {{REMOTE_STORAGE_URL}}
+ </Location>
+
+ <Proxy "{{REMOTE_STORAGE_URL}}">
+   SSLProxyEngine on
+   ProxySet connectiontimeout=5 enablereuse=on keepalive=on retry=0 timeout=30 ttl=300
+ </Proxy>
+
+</VirtualHost>

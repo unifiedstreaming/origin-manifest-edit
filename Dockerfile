@@ -1,33 +1,35 @@
 FROM alpine:3.12
+LABEL maintainer "Unified Streaming <support@unified-streaming.com>"
 
-ARG REPO=http://stable.apk.unified-streaming.com/alpine/v3.12
+# Install packages
+RUN apk --update add apache2 apache2-proxy apache2-ssl python3 py3-pip \
+ && rm -f /var/cache/apk/*
 
-# install latest beta build & apache
-RUN apk \
-    --update \
-    --repository $REPO \
-    --allow-untrusted \
-    add \
-        python3 \
-        py3-pip \
-        apache2 \
-        mp4split=1.10.28-r0 \
-        mod_smooth_streaming=1.10.28-r0 \
-        manifest-edit=1.10.28-r0 \
+RUN wget -q -O /etc/apk/keys/alpine@unified-streaming.com.rsa.pub \
+  https://stable.apk.unified-streaming.com/alpine@unified-streaming.com.rsa.pub
+
+RUN apk --update \
+        --repository https://stable.apk.unified-streaming.com/alpine/v3.12 \
+        add \
+          mp4split=1.10.28-r0 \
+          mod_smooth_streaming=1.10.28-r0 \
+	        mod_unified_s3_auth=1.10.28-r0 \
+          manifest-edit=1.10.28-r0 \
     && pip3 install \
         pyyaml==5.3.1 \
         schema==0.7.3 \
-    && rm -f /var/cache/apk/*
+ && rm -f /var/cache/apk/*
 
 RUN mkdir -p /run/apache2 \
-    && ln -s /dev/stderr /var/log/apache2/error.log \
-    && ln -s /dev/stdout /var/log/apache2/access.log \
-    && mkdir -p /var/www/unified-origin
+ && ln -s /dev/stderr /var/log/apache2/error.log \
+ && ln -s /dev/stdout /var/log/apache2/access.log \
+ && mkdir -p /var/www/unified-origin
 
 COPY httpd.conf /etc/apache2/httpd.conf
 COPY unified-origin.conf.in /etc/apache2/conf.d/unified-origin.conf.in
 COPY s3_auth.conf.in /etc/apache2/conf.d/s3_auth.conf.in
 COPY remote_storage.conf.in /etc/apache2/conf.d/remote_storage.conf.in
+COPY transcode.conf.in /etc/apache2/conf.d/transcode.conf.in
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY index.html /var/www/unified-origin/index.html
 COPY clientaccesspolicy.xml /var/www/unified-origin/clientaccesspolicy.xml
