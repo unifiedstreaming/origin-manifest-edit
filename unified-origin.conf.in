@@ -1,20 +1,35 @@
 LoadModule smooth_streaming_module modules/mod_smooth_streaming.so
-LoadModule substitute_module modules/mod_substitute.so
-LoadModule ext_filter_module modules/mod_ext_filter.so
-AddHandler smooth-streaming.extensions .ism .isml
 
-ServerName unified-origin
-
-<Location />
-  UspHandleIsm on
-</Location>
 
 UspLicenseKey /etc/usp-license.key
 Define UspLicenseFile /etc/usp-license.key
 
 LogFormat {{LOG_FORMAT}} log_format
 
-<VirtualHost 0.0.0.0:80>
+<Directory /var/www/unified-origin>
+  Require all granted
+</Directory>
+
+  # Frontend virtualhost for streaming from location filesystem or proxy to the second vhost
+  # Both locations can passed through the manifest-edit tool by using query parameter ?pipeline=
+<VirtualHost *:80>
+  ServerName unified-origin
+
+  AddHandler smooth-streaming.extensions .ism .isml .mp4
+  SSLProxyEngine on
+
+  # Location for streaming local server manifests
+  <Location "/">
+    UspHandleIsm on
+    UspEnableSubreq on
+  </Location>
+
+  # Location for streaming remote manifests via port 81 vhost
+  <Location "/{{REMOTE_PATH}}/">
+    ProxyPass http://0.0.0.0:81/
+    ProxyPassReverse http://0.0.0.0:81/
+  </Location>
+
   CustomLog /dev/stdout log_format
   ErrorLog /dev/stderr
 
@@ -28,6 +43,11 @@ LogFormat {{LOG_FORMAT}} log_format
   Header set Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
   Header set Access-Control-Allow-Origin "*"
   Header set Access-Control-Expose-Headers "Server,range"
+
+
+  # Manifest edit configuration starts here.
+  # Changes can be made to client manifest when the server manifest is located on either local or remote location.
+  # To ensure sucessfull playback use a public ip and not localhost as this may cause issue in specific players.
 
   AddOutputFilterByType SUBSTITUTE application/dash+xml
   Substitute "s@(initialization|media)=\"(.*):@$1=\"\./$2:@"
@@ -63,7 +83,7 @@ LogFormat {{LOG_FORMAT}} log_format
   ExtFilterDefine ef_utc_change                            mode=output cmd="${ManifestEditCmdPre}${PipelineConfUTCChange}${ManifestEditCmdPost}"
   ExtFilterDefine ef_utc_remove                            mode=output cmd="${ManifestEditCmdPre}${PipelineConfUTCRemove}${ManifestEditCmdPost}"
 
-  <LocationMatch "isml?/\.mpd">
+  <LocationMatch ".*\.[is]sm[l]?/\.mpd$">
     <If "%{QUERY_STRING} =~ /pipeline=adaptation_sets_order/">
         SetOutputFilter ef_adaptation_sets_order
         ExtFilterOptions LogStdErr Onfail=abort
@@ -123,11 +143,7 @@ LogFormat {{LOG_FORMAT}} log_format
         SetOutputFilter ef_utc_remove
         ExtFilterOptions LogStdErr Onfail=abort
     </If>
-    
+
   </LocationMatch>
 
-</VirtualHost>
-
-<Directory /var/www/unified-origin>
-  Require all granted
-</Directory>
+ </VirtualHost>
